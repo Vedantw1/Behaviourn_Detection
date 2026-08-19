@@ -1,0 +1,22 @@
+# Maven build target directory
+target/
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Local dataset & database files
+*.db
+behavioral_data.csv
+
+# IDE & Editor files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Temporary logs
+*.log
