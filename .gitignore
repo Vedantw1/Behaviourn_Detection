@@ -20,3 +20,9 @@ behavioral_data.csv
 
 # Temporary logs
 *.log
+
+# Python & ML Artifacts
+__pycache__/
+*.pyc
+ml/models/
+*.pkl
