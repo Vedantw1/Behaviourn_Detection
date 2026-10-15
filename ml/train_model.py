@@ -83,12 +83,77 @@ def train_and_evaluate(X, y, feature_cols):
     
     print(feature_ranking.to_string(index=False))
 
+    # Base directories
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    models_dir = os.path.join(script_dir, "models")
+    reports_dir = os.path.join(script_dir, "reports")
+    os.makedirs(models_dir, exist_ok=True)
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # 4. Generate Visual Analytics for Final-Year Project Report
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from sklearn.metrics import roc_curve, auc
+
+        # A. Confusion Matrix Plot
+        plt.figure(figsize=(6, 5))
+        cm = confusion_matrix(y_test, rf_preds)
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                    xticklabels=['Fraud (0)', 'Genuine (1)'],
+                    yticklabels=['Fraud (0)', 'Genuine (1)'])
+        plt.title('Confusion Matrix - Random Forest Biometric Classifier')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('Actual Label')
+        plt.tight_layout()
+        cm_path = os.path.join(reports_dir, 'confusion_matrix.png')
+        plt.savefig(cm_path, dpi=300)
+        plt.close()
+        print(f"📊 Confusion Matrix saved to: {cm_path}")
+
+        # B. ROC Curve Plot
+        rf_probs = rf_model.predict_proba(X_test_scaled)[:, 1]
+        fpr, tpr, _ = roc_curve(y_test, rf_probs)
+        roc_auc = auc(fpr, tpr)
+
+        plt.figure(figsize=(7, 5))
+        plt.plot(fpr, tpr, color='#2563eb', lw=2.5, label=f'Random Forest (AUC = {roc_auc:.3f})')
+        plt.plot([0, 1], [0, 1], color='#9ca3af', lw=1.5, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate (1 - Specificity)')
+        plt.ylabel('True Positive Rate (Sensitivity)')
+        plt.title('Receiver Operating Characteristic (ROC) Curve')
+        plt.legend(loc="lower right")
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        roc_path = os.path.join(reports_dir, 'roc_curve.png')
+        plt.savefig(roc_path, dpi=300)
+        plt.close()
+        print(f"📈 ROC Curve saved to: {roc_path}")
+
+        # C. Feature Importance Bar Chart
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x='Importance', y='Feature', data=feature_ranking, palette='viridis')
+        plt.title('Biometric Feature Importance Ranking')
+        plt.xlabel('Relative Gini Importance')
+        plt.ylabel('Biometric Feature')
+        plt.tight_layout()
+        fi_path = os.path.join(reports_dir, 'feature_importance.png')
+        plt.savefig(fi_path, dpi=300)
+        plt.close()
+        print(f"📉 Feature Importance chart saved to: {fi_path}")
+
+    except Exception as e:
+        print(f"Warning generating evaluation plots: {e}")
+
     # Save best model and scaler
-    os.makedirs("models", exist_ok=True)
-    joblib.dump(rf_model, "models/behavior_model.pkl")
-    joblib.dump(scaler, "models/scaler.pkl")
-    print("\n💾 Model saved to ml/models/behavior_model.pkl")
-    print("💾 Scaler saved to ml/models/scaler.pkl")
+    model_file = os.path.join(models_dir, "behavior_model.pkl")
+    scaler_file = os.path.join(models_dir, "scaler.pkl")
+    joblib.dump(rf_model, model_file)
+    joblib.dump(scaler, scaler_file)
+    print(f"\n💾 Model successfully saved to {model_file}")
+    print(f"💾 Scaler successfully saved to {scaler_file}")
 
 if __name__ == "__main__":
     df = load_data()

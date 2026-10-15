@@ -36,6 +36,14 @@ public class MainView {
     private Label csvPathLabel;
     private TextArea typingArea;
     private FeaturePreviewTable featureTable;
+    private CheckBox continuousCheckBox;
+
+    // Real-Time ML Inference & Biometric Trust Shield Controls
+    private Label trustScoreLabel;
+    private ProgressBar trustProgressBar;
+    private Label predictionBadge;
+    private Label predictionDetailsLabel;
+    private CheckBox lockOnFraudCheckBox;
 
     private KeyboardEventListener keyListener;
 
@@ -55,10 +63,15 @@ public class MainView {
         topBox.getChildren().addAll(createHeader(), createFormPanel());
         root.setTop(topBox);
 
-        // Center Section: Timer, Controls, Typing Practice Panel & Preview Table
+        // Center Section: Timer, Trust Meter, Typing Practice Panel & Preview Table
         VBox centerBox = new VBox(15);
         centerBox.setPadding(new Insets(15, 0, 15, 0));
-        centerBox.getChildren().addAll(createTimerAndControlBar(), createTypingPanel(), createTablePanel());
+        centerBox.getChildren().addAll(
+                createTimerAndControlBar(),
+                createBiometricTrustPanel(),
+                createTypingPanel(),
+                createTablePanel()
+        );
         root.setCenter(centerBox);
 
         // Bottom Section: Status Bar & CSV Path Info
@@ -106,12 +119,30 @@ public class MainView {
         durationSpinner.setEditable(true);
         durationSpinner.setPrefWidth(100);
 
+        // Continuous Recording Mode Checkbox
+        continuousCheckBox = new CheckBox("🔁 Continuous Recording Mode (Auto-repeat 30s sessions)");
+        continuousCheckBox.setSelected(true);
+        continuousCheckBox.getStyleClass().add("field-label");
+
+        Label systemModeLabel = new Label(
+                collector.isGlobalHookActive()
+                        ? "🌐 System-Wide Capture: Active (Tracking mouse & keys across all macOS apps)"
+                        : "⚠️ System-Wide Capture: Inactive (Grant Accessibility in macOS System Settings)"
+        );
+        systemModeLabel.setStyle(collector.isGlobalHookActive()
+                ? "-fx-text-fill: #10b981; -fx-font-size: 11px; -fx-font-weight: bold;"
+                : "-fx-text-fill: #f59e0b; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+        HBox optionsBox = new HBox(20, continuousCheckBox, systemModeLabel);
+        optionsBox.setAlignment(Pos.CENTER_LEFT);
+
         grid.add(userLabel, 0, 0);
         grid.add(userIdField, 1, 0);
         grid.add(labelTag, 2, 0);
         grid.add(labelComboBox, 3, 0);
         grid.add(durationLabel, 4, 0);
         grid.add(durationSpinner, 5, 0);
+        grid.add(optionsBox, 0, 1, 6, 1);
 
         return grid;
     }
@@ -146,13 +177,102 @@ public class MainView {
         return bar;
     }
 
+    private VBox createBiometricTrustPanel() {
+        VBox box = new VBox(10);
+        box.getStyleClass().add("trust-panel");
+
+        // Header Row: Title and Live Prediction Status Badge
+        HBox headerRow = new HBox(12);
+        headerRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label titleLabel = new Label("🛡️ Real-Time Biometric Fraud Shield (Active ML Continuous Authentication)");
+        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        predictionBadge = new Label("● WAITING FOR INITIAL SESSION");
+        predictionBadge.getStyleClass().add("trust-badge-genuine");
+        predictionBadge.setStyle("-fx-text-fill: #94a3b8; -fx-border-color: #64748b; -fx-background-color: rgba(100, 116, 139, 0.15);");
+
+        headerRow.getChildren().addAll(titleLabel, spacer, predictionBadge);
+
+        // Score Row: Progress Bar, Percentage Label, and Threat Lockout Toggle
+        HBox scoreRow = new HBox(15);
+        scoreRow.setAlignment(Pos.CENTER_LEFT);
+
+        trustProgressBar = new ProgressBar(0.0);
+        trustProgressBar.getStyleClass().add("trust-bar");
+        trustProgressBar.setPrefWidth(360);
+        trustProgressBar.setPrefHeight(18);
+
+        trustScoreLabel = new Label("Biometric Trust Score: --%");
+        trustScoreLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
+
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+
+        lockOnFraudCheckBox = new CheckBox("🚨 Threat Lockout Alert (Prompt on Imposter Detection)");
+        lockOnFraudCheckBox.setSelected(true);
+        lockOnFraudCheckBox.getStyleClass().add("field-label");
+        lockOnFraudCheckBox.setStyle("-fx-font-size: 12px;");
+
+        scoreRow.getChildren().addAll(trustProgressBar, trustScoreLabel, spacer2, lockOnFraudCheckBox);
+
+        predictionDetailsLabel = new Label("Confidence: -- | Inference Model: Random Forest & XGBoost Ensemble");
+        predictionDetailsLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
+
+        box.getChildren().addAll(headerRow, scoreRow, predictionDetailsLabel);
+        return box;
+    }
+
+    private void updateTrustPanel(com.behavior.collector.model.BiometricPrediction prediction) {
+        if (prediction == null) return;
+
+        double trust = prediction.trustScore();
+        trustProgressBar.setProgress(trust / 100.0);
+        trustScoreLabel.setText(String.format("Biometric Trust Score: %.1f%%", trust));
+
+        predictionBadge.getStyleClass().removeAll("trust-badge-genuine", "trust-badge-fraud");
+
+        if (prediction.isGenuine()) {
+            predictionBadge.setText("🛡️ AUTHENTICATED: GENUINE USER");
+            predictionBadge.getStyleClass().add("trust-badge-genuine");
+            predictionBadge.setStyle("");
+            trustProgressBar.getStyleClass().removeAll("trust-bar-danger");
+            trustProgressBar.getStyleClass().add("trust-bar");
+            predictionDetailsLabel.setText(String.format(
+                    "✅ Verified genuine human biometrics. Model Confidence: %.1f%% (Anomaly Risk: %.1f%%)",
+                    prediction.confidence(), prediction.fraudScore()
+            ));
+        } else {
+            predictionBadge.setText("🚨 THREAT DETECTED: IMPOSTER / BOT ATTACK");
+            predictionBadge.getStyleClass().add("trust-badge-fraud");
+            predictionBadge.setStyle("");
+            trustProgressBar.getStyleClass().removeAll("trust-bar");
+            trustProgressBar.getStyleClass().add("trust-bar-danger");
+            predictionDetailsLabel.setText(String.format(
+                    "⚠️ Biometric anomaly detected! Dynamics deviate from baseline. Model Confidence: %.1f%% (Fraud Score: %.1f%%)",
+                    prediction.confidence(), prediction.fraudScore()
+            ));
+
+            if (lockOnFraudCheckBox != null && lockOnFraudCheckBox.isSelected()) {
+                showAlert("🚨 Biometric Security Alert",
+                        "Security Threat Detected!\n\n" +
+                        "The recent typing cadence, dwell timings, and mouse acceleration do not match " +
+                        "the authentic user baseline (Fraud Score: " + String.format("%.1f%%", prediction.fraudScore()) + ").\n\n" +
+                        "Action: Stepped-up Multi-Factor Authentication required.");
+            }
+        }
+    }
+
     private VBox createTypingPanel() {
         VBox box = new VBox(6);
-        Label label = new Label("Typing Practice Area (Type here during recording):");
+        Label label = new Label("Typing Practice Area (Optional - System-wide capture is active):");
         label.getStyleClass().add("field-label");
 
         typingArea = new TextArea();
-        typingArea.setPromptText("Type any sample text here during the recording session to capture keystrokes, backspaces, dwell times, and flight times...");
+        typingArea.setPromptText("System-wide capture is active! You can type here OR switch to ANY other app (Chrome, VS Code, Notes, Slack, etc.) — all your keystrokes, flight times, and mouse movements are captured automatically across macOS...");
         typingArea.setPrefRowCount(3);
         typingArea.setWrapText(true);
 
@@ -221,6 +341,9 @@ public class MainView {
             userIdField.setDisable(true);
             labelComboBox.setDisable(true);
             durationSpinner.setDisable(true);
+            if (continuousCheckBox != null) {
+                continuousCheckBox.setDisable(true);
+            }
 
             statusLabel.setText("Status: Recording behavioral biometric events...");
             statusLabel.getStyleClass().removeAll("status-idle", "status-success");
@@ -233,7 +356,17 @@ public class MainView {
     }
 
     private void handleStopRecording() {
+        if (continuousCheckBox != null) {
+            continuousCheckBox.setSelected(false);
+            continuousCheckBox.setDisable(false);
+        }
         controller.stopRecording();
+    }
+
+    public void autoStartRecording() {
+        if (!collector.isRecording()) {
+            handleStartRecording();
+        }
     }
 
     private void handleSelectCsvFile() {
@@ -256,49 +389,77 @@ public class MainView {
 
         // Recording completed callback
         collector.setOnRecordingCompleted(session -> {
-            startButton.setDisable(false);
-            stopButton.setDisable(true);
-            userIdField.setDisable(false);
-            labelComboBox.setDisable(false);
-            durationSpinner.setDisable(false);
+            boolean isContinuous = continuousCheckBox != null && continuousCheckBox.isSelected();
+
+            if (!isContinuous) {
+                startButton.setDisable(false);
+                stopButton.setDisable(true);
+                userIdField.setDisable(false);
+                labelComboBox.setDisable(false);
+                durationSpinner.setDisable(false);
+                if (continuousCheckBox != null) {
+                    continuousCheckBox.setDisable(false);
+                }
+            }
             timerLabel.setText(String.format("%02ds", durationSpinner.getValue()));
 
             try {
                 FeatureVector vector = controller.processCompletedSession(session);
                 featureTable.updateFeatures(vector);
 
-                statusLabel.setText("Status: Session completed! Features calculated and exported to CSV.");
-                statusLabel.getStyleClass().removeAll("status-recording", "status-idle");
-                statusLabel.getStyleClass().add("status-success");
+                // Run real-time machine learning inference
+                com.behavior.collector.model.BiometricPrediction prediction = controller.predictSession(vector);
+                if (prediction != null) {
+                    updateTrustPanel(prediction);
+                }
+
+                if (isContinuous) {
+                    String authStatus = (prediction != null && prediction.isGenuine()) ? "Authenticated (Genuine)" : "Anomaly Flagged";
+                    statusLabel.setText(String.format("Status: Saved & Evaluated (%s, Trust: %.1f%%). Repeating...",
+                            authStatus, (prediction != null ? prediction.trustScore() : 100.0)));
+                    statusLabel.getStyleClass().removeAll("status-recording", "status-idle");
+                    statusLabel.getStyleClass().add("status-success");
+
+                    // Trigger next session automatically
+                    javafx.application.Platform.runLater(this::handleStartRecording);
+                } else {
+                    statusLabel.setText("Status: Session completed! Features calculated, exported, and verified by ML model.");
+                    statusLabel.getStyleClass().removeAll("status-recording", "status-idle");
+                    statusLabel.getStyleClass().add("status-success");
+                }
             } catch (Exception e) {
-                statusLabel.setText("Status: Error saving CSV - " + e.getMessage());
+                statusLabel.setText("Status: Error saving dataset row - " + e.getMessage());
                 showAlert("CSV Export Error", e.getMessage());
             }
         });
     }
 
     public void attachEventHandlers(Scene scene) {
-        MouseEventListener mouseListener = new MouseEventListener(collector);
-        this.keyListener = new KeyboardEventListener(collector);
-        WindowEventListener windowListener = new WindowEventListener(collector);
+        // If system-wide JNativeHook is active, it captures all keyboard & mouse events globally across the OS.
+        // We only attach local scene handlers as a fallback if system-wide hooks are inactive (e.g. permission denied)
+        if (!collector.isGlobalHookActive()) {
+            MouseEventListener mouseListener = new MouseEventListener(collector);
+            this.keyListener = new KeyboardEventListener(collector);
 
-        // Attach mouse handlers to root scene
-        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_MOVED, mouseListener.getMouseMovedHandler());
-        scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, mouseListener.getMouseClickedHandler());
-        scene.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, mouseListener.getScrollHandler());
+            scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_MOVED, mouseListener.getMouseMovedHandler());
+            scene.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, mouseListener.getMouseClickedHandler());
+            scene.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, mouseListener.getScrollHandler());
 
-        // Attach keyboard handlers to root scene
-        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, keyListener.getKeyPressedHandler());
-        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED, keyListener.getKeyReleasedHandler());
+            scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, keyListener.getKeyPressedHandler());
+            scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED, keyListener.getKeyReleasedHandler());
 
-        // Attach keyboard handlers directly to typingArea as well
-        if (typingArea != null) {
-            typingArea.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, keyListener.getKeyPressedHandler());
-            typingArea.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED, keyListener.getKeyReleasedHandler());
+            if (typingArea != null) {
+                typingArea.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, keyListener.getKeyPressedHandler());
+                typingArea.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED, keyListener.getKeyReleasedHandler());
+            }
         }
 
+        WindowEventListener windowListener = new WindowEventListener(collector);
         // Attach window focus listener
         stage.focusedProperty().addListener(windowListener.getFocusChangeListener());
+
+        // Gracefully clean up native hooks when window is closed
+        stage.setOnCloseRequest(e -> collector.shutdownGlobalHooks());
     }
 
     private void showAlert(String title, String content) {

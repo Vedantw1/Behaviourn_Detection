@@ -41,7 +41,8 @@ public record FeatureVector(
      * @return Formatted CSV string
      */
     public String toCsvRow() {
-        return String.format("%s,%s,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%d,%.4f",
+        return String.format(java.util.Locale.US,
+                "%s,%s,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%d,%.4f",
                 userId,
                 label.getDisplayName(),
                 avgMouseSpeed,
@@ -56,6 +57,23 @@ public record FeatureVector(
                 sessionDuration,
                 windowSwitchCount,
                 activeTimeRatio
+        );
+    }
+
+    /**
+     * Serializes feature vector values into JSON format for ML inference.
+     *
+     * @return Formatted JSON string
+     */
+    public String toJson() {
+        return String.format(java.util.Locale.US,
+                "{\"AvgMouseSpeed\":%.4f,\"MouseAcceleration\":%.4f,\"ClickFrequency\":%.4f," +
+                "\"ScrollSpeed\":%.4f,\"AvgDwellTime\":%.4f,\"AvgFlightTime\":%.4f," +
+                "\"TypingSpeed\":%.4f,\"BackspaceCount\":%d,\"IdleTime\":%.4f," +
+                "\"SessionDuration\":%.4f,\"WindowSwitchCount\":%d,\"ActiveTimeRatio\":%.4f}",
+                avgMouseSpeed, mouseAcceleration, clickFrequency, scrollSpeed,
+                avgDwellTime, avgFlightTime, typingSpeed, backspaceCount,
+                idleTime, sessionDuration, windowSwitchCount, activeTimeRatio
         );
     }
 }

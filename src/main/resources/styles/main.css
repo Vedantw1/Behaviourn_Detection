@@ -173,3 +173,52 @@
     -fx-font-size: 13px;
     -fx-padding: 8px 12px;
 }
+
+/* Real-Time Biometric Trust Shield & Fraud Alert */
+.trust-panel {
+    -fx-background-color: rgba(15, 23, 42, 0.85);
+    -fx-background-radius: 10px;
+    -fx-border-color: #334155;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px 18px;
+}
+
+.trust-badge-genuine {
+    -fx-background-color: rgba(16, 185, 129, 0.2);
+    -fx-border-color: #10b981;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-text-fill: #34d399;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 5px 12px;
+}
+
+.trust-badge-fraud {
+    -fx-background-color: rgba(239, 68, 68, 0.25);
+    -fx-border-color: #ef4444;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-text-fill: #f87171;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 5px 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(239, 68, 68, 0.6), 10, 0, 0, 0);
+}
+
+.trust-bar .track {
+    -fx-background-color: #334155;
+    -fx-background-radius: 6px;
+}
+
+.trust-bar .bar {
+    -fx-background-color: linear-gradient(to right, #10b981, #06b6d4);
+    -fx-background-radius: 6px;
+}
+
+.trust-bar-danger .bar {
+    -fx-background-color: linear-gradient(to right, #ef4444, #f97316);
+    -fx-background-radius: 6px;
+}
+

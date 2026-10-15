@@ -25,6 +25,7 @@ public class SessionController {
     private final CsvExporter csvExporter;
     private final DatabaseExporter databaseExporter;
     private final CloudDatabaseExporter cloudExporter;
+    private final com.behavior.collector.feature.ModelInferenceService inferenceService;
     private File outputCsvFile = new File("behavioral_data.csv");
     private File outputDbFile = new File("behavioral_data.db");
 
@@ -34,6 +35,11 @@ public class SessionController {
         this.csvExporter = new DefaultCsvExporter();
         this.databaseExporter = new DefaultDatabaseExporter();
         this.cloudExporter = new CloudDatabaseExporter();
+        this.inferenceService = new com.behavior.collector.feature.ModelInferenceService();
+    }
+
+    public com.behavior.collector.model.BiometricPrediction predictSession(FeatureVector vector) {
+        return inferenceService.predict(vector);
     }
 
     public void setOutputCsvFile(File file) {

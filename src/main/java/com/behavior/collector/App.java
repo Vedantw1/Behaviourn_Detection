@@ -17,7 +17,7 @@ public class App extends Application {
         primaryStage.setTitle("Behavioral Data Collector - Final Year Biometric Project");
 
         MainView mainView = new MainView(primaryStage);
-        Scene scene = new Scene(mainView.buildUI(), 900, 700);
+        Scene scene = new Scene(mainView.buildUI(), 960, 780);
 
         // Load custom stylesheet
         URL cssUrl = getClass().getResource("/styles/main.css");
@@ -29,9 +29,12 @@ public class App extends Application {
         mainView.attachEventHandlers(scene);
 
         primaryStage.setScene(scene);
-        primaryStage.setMinWidth(840);
-        primaryStage.setMinHeight(640);
+        primaryStage.setMinWidth(920);
+        primaryStage.setMinHeight(720);
         primaryStage.show();
+
+        // Automatically start recording session in continuous mode on application launch
+        mainView.autoStartRecording();
     }
 
     public static void main(String[] args) {

@@ -25,12 +25,54 @@ public class EventCollector {
     private int remainingSeconds = 30;
     private Timeline timeline;
     private GlobalKeyboardListener globalKeyboardListener;
+    private GlobalMouseListener globalMouseListener;
+    private boolean globalHookActive = false;
 
     private Consumer<Integer> timerTickListener;
     private Consumer<BehavioralSession> recordingCompletedListener;
 
+    public EventCollector() {
+        initGlobalHooks();
+    }
+
+    public synchronized void initGlobalHooks() {
+        if (globalHookActive && GlobalScreen.isNativeHookRegistered()) return;
+        try {
+            // Disable verbose JNativeHook internal logger
+            java.util.logging.Logger logger = java.util.logging.Logger.getLogger(GlobalScreen.class.getPackage().getName());
+            logger.setLevel(java.util.logging.Level.OFF);
+            logger.setUseParentHandlers(false);
+
+            if (!GlobalScreen.isNativeHookRegistered()) {
+                GlobalScreen.registerNativeHook();
+            }
+
+            if (globalKeyboardListener == null) {
+                globalKeyboardListener = new GlobalKeyboardListener(this);
+                GlobalScreen.addNativeKeyListener(globalKeyboardListener);
+            }
+
+            if (globalMouseListener == null) {
+                globalMouseListener = new GlobalMouseListener(this);
+                GlobalScreen.addNativeMouseListener(globalMouseListener);
+                GlobalScreen.addNativeMouseMotionListener(globalMouseListener);
+                GlobalScreen.addNativeMouseWheelListener(globalMouseListener);
+            }
+
+            globalHookActive = true;
+            LoggerUtil.info(EventCollector.class, "Activated JNativeHook system-wide global keyboard and mouse listeners.");
+        } catch (Throwable t) {
+            globalHookActive = false;
+            LoggerUtil.warning(EventCollector.class, "System-wide global hooks not available or macOS Accessibility permission denied: " + t.getMessage());
+        }
+    }
+
     public synchronized boolean isRecording() {
         return recording;
+    }
+
+    public boolean isGlobalHookActive() {
+        return globalHookActive && GlobalScreen.isNativeHookRegistered();
     }
 
     public synchronized void startRecording(String userId, SessionLabel label, int sessionDurationSeconds) {
@@ -44,26 +86,12 @@ public class EventCollector {
         this.recording = true;
         this.remainingSeconds = sessionDurationSeconds;
 
-        // Register JNativeHook Global Keyboard Listener
-        try {
-            if (globalKeyboardListener == null) {
-                globalKeyboardListener = new GlobalKeyboardListener(this);
-            } else {
-                globalKeyboardListener.reset();
-            }
+        if (!globalHookActive) {
+            initGlobalHooks();
+        }
 
-            if (!GlobalScreen.isNativeHookRegistered()) {
-                // Disable verbose JNativeHook internal logger
-                java.util.logging.Logger logger = java.util.logging.Logger.getLogger(GlobalScreen.class.getPackage().getName());
-                logger.setLevel(java.util.logging.Level.OFF);
-                logger.setUseParentHandlers(false);
-
-                GlobalScreen.registerNativeHook();
-            }
-            GlobalScreen.addNativeKeyListener(globalKeyboardListener);
-            LoggerUtil.info(EventCollector.class, "Activated JNativeHook system-wide global key listener.");
-        } catch (Throwable t) {
-            LoggerUtil.warning(EventCollector.class, "System-wide global key listening not available or permission denied: " + t.getMessage());
+        if (globalKeyboardListener != null) {
+            globalKeyboardListener.reset();
         }
 
         if (timerTickListener != null) {
@@ -95,17 +123,9 @@ public class EventCollector {
             timeline.stop();
         }
 
-        // Unregister JNativeHook Global Keyboard Listener
-        if (globalKeyboardListener != null) {
-            try {
-                GlobalScreen.removeNativeKeyListener(globalKeyboardListener);
-                if (GlobalScreen.isNativeHookRegistered()) {
-                    GlobalScreen.unregisterNativeHook();
-                }
-            } catch (Throwable t) {
-                LoggerUtil.warning(EventCollector.class, "Error unregistering JNativeHook listener: " + t.getMessage());
-            }
-        }
+        // Note: We deliberately do NOT unregister GlobalScreen on session stop because re-registering
+        // on macOS terminates native threads and destroys event taps. The global listeners check
+        // isRecording() and cleanly ignore events outside active recording sessions.
 
         if (currentSession != null) {
             currentSession.endSession();
@@ -114,6 +134,26 @@ public class EventCollector {
 
             if (recordingCompletedListener != null) {
                 Platform.runLater(() -> recordingCompletedListener.accept(completedSession));
+            }
+        }
+    }
+
+    public synchronized void shutdownGlobalHooks() {
+        if (GlobalScreen.isNativeHookRegistered()) {
+            try {
+                if (globalKeyboardListener != null) {
+                    GlobalScreen.removeNativeKeyListener(globalKeyboardListener);
+                }
+                if (globalMouseListener != null) {
+                    GlobalScreen.removeNativeMouseListener(globalMouseListener);
+                    GlobalScreen.removeNativeMouseMotionListener(globalMouseListener);
+                    GlobalScreen.removeNativeMouseWheelListener(globalMouseListener);
+                }
+                GlobalScreen.unregisterNativeHook();
+                globalHookActive = false;
+                LoggerUtil.info(EventCollector.class, "Unregistered system-wide JNativeHook listeners.");
+            } catch (Throwable t) {
+                LoggerUtil.warning(EventCollector.class, "Error unregistering JNativeHook listener: " + t.getMessage());
             }
         }
     }
